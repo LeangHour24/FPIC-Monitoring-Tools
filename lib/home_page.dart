@@ -22,6 +22,23 @@ const String lookerStudioUrl =
 
 class _HomePageState extends State<HomePage> {
   late final WebViewController controller;
+  double _pointerStartY = 0.0;
+  bool _isRefreshing = false;
+  bool _atTop = false;
+
+  Future<void> _doRefresh() async {
+    if (_isRefreshing) return;
+    setState(() {
+      _isRefreshing = true;
+    });
+    try {
+      await controller.reload();
+    } catch (_) {}
+    if (!mounted) return;
+    setState(() {
+      _isRefreshing = false;
+    });
+  }
 
   @override
   void initState() {
@@ -131,52 +148,78 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
 
-      // Header + WebView with pull-to-refresh
+      // WebView with header overlayed (header visually covers top of WebView)
       body: Stack(
         children: [
-          RefreshIndicator(
-            onRefresh: () async {
-              try {
-                await controller.reload();
-              } catch (_) {}
-            },
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
+          // WebView fills the body
+          Positioned.fill(
+            child: Stack(
               children: [
-                SizedBox(
-                  height: MediaQuery.of(context).size.height,
+                Listener(
+                  onPointerDown: (ev) async {
+                    _pointerStartY = ev.position.dy;
+                    try {
+                      final res = await controller.runJavaScriptReturningResult(
+                        'window.scrollY',
+                      );
+                      double scrollY = 0.0;
+                      if (res is num)
+                        scrollY = res.toDouble();
+                      else if (res is String)
+                        scrollY = double.tryParse(res) ?? 0.0;
+                      _atTop = scrollY <= 1.0;
+                    } catch (_) {
+                      _atTop = false;
+                    }
+                  },
+                  onPointerMove: (ev) {
+                    if (!_atTop || _isRefreshing) return;
+                    final dy = ev.position.dy - _pointerStartY;
+                    if (dy > 80) {
+                      _doRefresh();
+                    }
+                  },
+                  onPointerUp: (_) {
+                    _pointerStartY = 0.0;
+                  },
                   child: WebViewWidget(controller: controller),
                 ),
+                // Decorative header that overlays the WebView. Use IgnorePointer so touches pass to WebView.
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: IgnorePointer(
+                    ignoring: true,
+                    child: Container(
+                      width: double.infinity,
+                      height: 55,
+                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+                      decoration: BoxDecoration(
+                        color: const Color.fromARGB(255, 4, 83, 147),
+                        borderRadius: const BorderRadius.only(
+                          bottomLeft: Radius.circular(20),
+                          bottomRight: Radius.circular(20),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                if (_isRefreshing)
+                  const Positioned(
+                    top: 8,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  ),
               ],
             ),
-          ),
-          Container(
-            width: double.infinity,
-            height: 55,
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
-            // Use decoration to apply borderRadius
-            decoration: BoxDecoration(
-              color: const Color.fromARGB(255, 4, 83, 147),
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(20), // Adjust value as needed
-                bottomRight: Radius.circular(20), // Adjust value as needed
-              ), // Adjust the radius value as needed
-            ),
-            // decoration: BoxDecoration(
-            //   borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
-            // ),
-            // child: Column(
-            //   crossAxisAlignment: CrossAxisAlignment.start,
-            //   children: [
-            //     const Text(
-            //       'FPIC Monitoring Tool for Communities',
-            //       style: TextStyle(
-            //         fontSize: 18,
-            //         fontWeight: FontWeight.w700,
-            //       ),
-            //     ),
-            //   ],
-            // ),
           ),
         ],
       ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:test_app/kobo_form_screen.dart';
 import 'auth_service.dart';
 import 'login_screen.dart';
 
@@ -18,7 +19,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(fontFamily: 'Khmer'),
       // Always show the login screen on startup per user request.
-      home: const LoginScreen(),
+      home: const KoboFormScreen(),
     );
   }
 }

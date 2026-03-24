@@ -81,6 +81,9 @@ class AppRouteBar extends StatelessWidget {
         child: BottomNavigationBar(
           currentIndex: currentIndex,
           onTap: (idx) {
+            // Ignore taps on the currently selected tab to avoid re-pushing screens.
+            if (idx == currentIndex) return;
+
             // Handle Dashboard centrally so per-page handlers can't bypass auth.
             if (idx == 0) {
               if (AuthService.isLoggedIn) {

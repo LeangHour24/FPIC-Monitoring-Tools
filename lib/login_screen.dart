@@ -327,9 +327,27 @@ class _LoginScreenState extends State<LoginScreen> {
               final v = await _promptForLink(hint, current);
               if (v != null && v.isNotEmpty) onSave(v);
             } else {
-              final uri = Uri.tryParse(current);
-              if (uri != null)
-                launchUrl(uri, mode: LaunchMode.externalApplication);
+              String link = current;
+              // If there is no scheme, determine whether it's a phone number
+              // (e.g. +85523883665) and prepend `tel:`. Otherwise assume web
+              // and prepend https:// if needed.
+              if (!link.contains(':')) {
+                final phoneLike = RegExp(r'^[\d\+\-\s\(\)]+$');
+                if (phoneLike.hasMatch(link)) {
+                  link = 'tel:$link';
+                } else {
+                  link = 'https://$link';
+                }
+              }
+              final uri = Uri.tryParse(link);
+              if (uri != null) {
+                // For tel/mailto use default launch; for http(s) open externally.
+                if (uri.scheme == 'tel' || uri.scheme == 'mailto') {
+                  launchUrl(uri);
+                } else {
+                  launchUrl(uri, mode: LaunchMode.externalApplication);
+                }
+              }
             }
           },
           onLongPress: () async {
